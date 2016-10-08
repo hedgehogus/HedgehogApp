@@ -2,6 +2,9 @@ package com.example.hedgehog.hedgehogapp;
 
 import android.app.Fragment;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -22,9 +25,23 @@ import com.facebook.LoggingBehavior;
 import com.facebook.Profile;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
-import com.google.android.gms.maps.MapView;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 
+import android.os.AsyncTask;
+
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
 
 /**
  * Created by hedgehog on 07.10.2016.
@@ -46,10 +63,16 @@ public class FacebookFragment extends Fragment {
     final String GENDER = "gender";
     final String BIRTHDAY = "birthday";
     final String RELATIONSHIP_STATUS = "relationship_status";
+    final String LOCATION = "location";
+    final String NAME = "name";
 
     String gender;
     String birthday;
     String relationship_status;
+    String [] locationName;
+    String pictureUrlString;
+
+    Bitmap bitmap;
 
 
 
@@ -58,6 +81,8 @@ public class FacebookFragment extends Fragment {
         super.onCreate(savedInstanceState);
         accessToken = AccessToken.getCurrentAccessToken();
         profile = Profile.getCurrentProfile();
+        locationName = new String [2];
+        locationName [0] = " ";
     }
 
     public void setMainActivity(MainActivity mainActivity){
@@ -129,6 +154,8 @@ public class FacebookFragment extends Fragment {
         tvFirstName.setText(profile.getFirstName());
         tvLastName.setText(profile.getLastName());
 
+        pictureUrlString = profile.getProfilePictureUri(200,200).toString();
+
         Bundle parameters = new Bundle();
         parameters.putString("fields", "name,birthday,location,relationship_status,gender" );
 
@@ -144,17 +171,133 @@ public class FacebookFragment extends Fragment {
 
                         gender = obj.optString(GENDER);
                         birthday = obj.optString(BIRTHDAY);
-                        birthday = birthday.replace("\\", ".");
+                        birthday = birthday.replace("/", ".");
+                        relationship_status = obj.optString(RELATIONSHIP_STATUS);
+                        try {
+                            locationName = obj.optJSONObject(LOCATION).getString(NAME).split(", ");
+                        } catch (JSONException e) {
+                            Log.d("error", e.getMessage());
+                        }
+
+                        AsyncTask<Integer,Void,Integer> at = new MyAsyncTask();
+                        at.execute();
 
 
 
                         Log.d("asdf", " " + obj);
-                        Log.d("asdf", " " + birthday);
+                        Log.d("asdf", " " + locationName[0] + locationName[1]);
 
 
                     }
                 }
         ).executeAsync();
 
+    }
+    public class MyAsyncTask extends AsyncTask<Integer,Void,Integer> {
+
+        final String GEOCODING_URL = "https://maps.googleapis.com/maps/api/geocode/json?address=";
+        final String KEY = "AIzaSyC1OhzJh_w5YRXa3m2KL6hdKjKaXBGc4UE";
+        final String RESULTS = "results";
+        final String GEOMETRY ="geometry";
+        final String LOCATION = "location";
+        final String LAT = "lat";
+        final String LNG = "lng";
+
+        double lat;
+        double lng;
+
+        @Override
+        protected Integer doInBackground(Integer... params) {
+            String responce = null;
+            InputStream is = null;
+            String myurl = GEOCODING_URL + locationName[0] + "&key=" + KEY;
+            Log.d ("asdf", " " + myurl);
+
+            try {
+                URL url = new URL(myurl);
+
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setReadTimeout(60000 /* milliseconds */);
+                conn.setConnectTimeout(60000 /* milliseconds */);
+                conn.setRequestMethod("GET");
+                conn.setDoInput(true);
+                conn.connect();
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode!=200){
+                    Log.d("error", "" + responseCode);
+                }
+                is = conn.getInputStream();
+
+                InputStreamReader isr = new InputStreamReader(is);
+                BufferedReader br = new BufferedReader(isr);
+                StringBuilder sb = new StringBuilder();
+
+                String read = br.readLine();
+                while(read != null) {
+                    sb.append(read);
+                    read = br.readLine();
+                }
+                responce = sb.toString();
+                isr.close();
+                br.close();
+
+                JSONObject jsonResponce = null;
+                try {
+                    jsonResponce = new JSONObject(responce);
+                } catch (JSONException e) {
+                    Log.d("error",e.getMessage());
+                }
+
+                JSONArray jsonObjects = jsonResponce.optJSONArray(RESULTS);
+                JSONObject jsonObject = jsonObjects.optJSONObject(0);
+                JSONObject location = jsonObject.optJSONObject(GEOMETRY).optJSONObject(LOCATION);
+                lat = location.optDouble(LAT);
+                lng = location.optDouble(LNG);
+
+                Log.d ("asdf", " " + pictureUrlString);
+
+
+                URL pictureUrl = new URL(pictureUrlString);
+
+                HttpURLConnection pictureConn = (HttpURLConnection) pictureUrl.openConnection();
+                pictureConn.setReadTimeout(100000 );
+                pictureConn.setConnectTimeout(150000 );
+                pictureConn.setRequestMethod("GET");
+                pictureConn.setDoInput(true);
+                pictureConn.connect();
+                InputStream pictureIS = pictureConn.getInputStream();
+                bitmap = null;
+                if (isCancelled()) return 0;
+                try {
+                    bitmap = BitmapFactory.decodeStream(pictureIS);
+                } catch (Exception e) {
+                    bitmap = BitmapFactory.decodeResource(mainActivity.getResources(),
+                            R.drawable.default_picture);
+                }
+
+            } catch (Exception e) {
+                Log.d("error", "" + e.getMessage());
+            }
+            finally {
+                if (is != null) {
+                    try {
+                        is.close();
+                    } catch (IOException e) {
+                        Log.d("error", e.getMessage());
+                    }
+                }
+            }
+            return 0;
+        }
+
+        @Override
+        protected void onPostExecute(Integer code) {
+            LatLng mark = new LatLng(lat, lng);
+            mainActivity.mMap.addMarker(new MarkerOptions().position(mark).title(locationName[0]));
+            mainActivity.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mark, 6));
+            imageView.setImageBitmap(bitmap);
+
+        }
     }
 }
