@@ -20,9 +20,10 @@ import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
 import com.facebook.LoggingBehavior;
 import com.facebook.Profile;
-import com.facebook.ProfileTracker;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
+import com.google.android.gms.maps.MapView;
+
 import org.json.JSONObject;
 
 /**
@@ -30,6 +31,8 @@ import org.json.JSONObject;
  */
 
 public class FacebookFragment extends Fragment {
+
+    MainActivity mainActivity;
 
     LoginButton loginButton;
     CallbackManager callbackManager;
@@ -40,14 +43,25 @@ public class FacebookFragment extends Fragment {
     ImageView imageView;
     TextView tvFirstName, tvLastName;
 
+    final String GENDER = "gender";
+    final String BIRTHDAY = "birthday";
+    final String RELATIONSHIP_STATUS = "relationship_status";
 
-    private final String BIRTHDAY = "birthday";
+    String gender;
+    String birthday;
+    String relationship_status;
+
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         accessToken = AccessToken.getCurrentAccessToken();
         profile = Profile.getCurrentProfile();
+    }
+
+    public void setMainActivity(MainActivity mainActivity){
+        this.mainActivity = mainActivity;
     }
 
     @Override
@@ -106,7 +120,9 @@ public class FacebookFragment extends Fragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        accessTokenTracker.stopTracking();
+        if (accessTokenTracker != null) {
+            accessTokenTracker.stopTracking();
+        }
     }
 
     private void setInformation() {
@@ -126,10 +142,15 @@ public class FacebookFragment extends Fragment {
                         FacebookSdk.addLoggingBehavior(LoggingBehavior.INCLUDE_ACCESS_TOKENS);
                         JSONObject obj = response.getJSONObject();
 
+                        gender = obj.optString(GENDER);
+                        birthday = obj.optString(BIRTHDAY);
+                        birthday = birthday.replace("\\", ".");
+
+
 
                         Log.d("asdf", " " + obj);
-                        Log.d("asdf", " " + AccessToken.getCurrentAccessToken().getPermissions());
-                        Log.d("asdf", " " + AccessToken.getCurrentAccessToken().getDeclinedPermissions());
+                        Log.d("asdf", " " + birthday);
+
 
                     }
                 }

@@ -16,6 +16,9 @@ allprojects {
     repositories {
         jcenter()
         mavenCentral()
+        maven {
+            url 'http://esri.bintray.com/arcgis'
+        }
     }
 }
 

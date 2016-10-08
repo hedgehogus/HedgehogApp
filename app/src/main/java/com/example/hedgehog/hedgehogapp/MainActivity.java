@@ -6,22 +6,25 @@ import android.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.widget.FrameLayout;
-
-import com.facebook.CallbackManager;
-import com.facebook.FacebookCallback;
-import com.facebook.FacebookException;
 import com.facebook.FacebookSdk;
 import com.facebook.appevents.AppEventsLogger;
-import com.facebook.login.LoginManager;
-import com.facebook.login.LoginResult;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 
-public class MainActivity extends AppCompatActivity {
+
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     FrameLayout container;
 
     FragmentManager fragmentManager;
     FacebookFragment facebookFragment;
 
+    public GoogleMap mMap;
+    boolean isMapReady = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,10 +36,15 @@ public class MainActivity extends AppCompatActivity {
         container = (FrameLayout) findViewById(R.id.container);
         fragmentManager = getFragmentManager();
         facebookFragment = new FacebookFragment();
+        facebookFragment.setMainActivity(this);
 
         FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
         fragmentTransaction.add(R.id.container, facebookFragment, "facebook fragment");
         fragmentTransaction.commit();
+
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
 
     }
 
@@ -44,5 +52,16 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         fragmentManager.beginTransaction().remove(facebookFragment);
+    }
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+        isMapReady = true;
+
+        // Add a marker in Sydney and move the camera
+        LatLng sydney = new LatLng(-34, 151);
+        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
     }
 }

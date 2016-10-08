@@ -75,12 +75,5 @@
             android:layout_weight="1" />
     </LinearLayout>
 
-    <com.google.android.gms.maps.MapView
-        android:layout_width="match_parent"
-        android:layout_height="110dp"
-        android:background="@color/colorAccent"
-        android:id="@+id/mapView"
-        android:layout_weight="0.66" />
-
 
 </LinearLayout>
