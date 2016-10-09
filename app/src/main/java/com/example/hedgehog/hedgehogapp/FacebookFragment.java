@@ -33,13 +33,10 @@ import com.facebook.login.widget.LoginButton;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-
 import android.os.AsyncTask;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -116,9 +113,13 @@ public class FacebookFragment extends Fragment {
 
         loginButton = (LoginButton) view.findViewById(R.id.login_button);
         loginButton.setFragment(this);
-        loginButton.setReadPermissions("email");
+        loginButton.setReadPermissions("email", "user_location", "user_birthday", "user_relationships");
+
 
         accessToken = AccessToken.getCurrentAccessToken();
+        if (accessToken != null) {
+            Log.d("asdf", " " + accessToken.getPermissions());
+        }
 
         profile = Profile.getCurrentProfile();
         if (profile!= null) {
@@ -128,8 +129,9 @@ public class FacebookFragment extends Fragment {
             @Override
             protected void onCurrentAccessTokenChanged(
                     AccessToken oldAccessToken,
-                    AccessToken currentAccessToken) {
-
+                    AccessToken currentAccessToken)
+            {
+                Log.d("asdf", " " + accessToken.getPermissions());
                 if (currentAccessToken == null){
 
                     buttonContainer.animate().translationY(0).setDuration(300);
@@ -148,20 +150,15 @@ public class FacebookFragment extends Fragment {
                 loginButton.setReadPermissions("user_birthday");
                 loginButton.setReadPermissions("user_relationships");
                 setInformation();
-
             }
 
             @Override
             public void onCancel() {
-
-
             }
 
             @Override
             public void onError(FacebookException error) {
-
-
-
+                Log.d("asdf", error.getMessage());
             }
         });
         return view;
@@ -184,49 +181,51 @@ public class FacebookFragment extends Fragment {
     }
 
     private void setInformation() {
-        tvFirstName.setText(profile.getFirstName());
-        tvLastName.setText(profile.getLastName());
-        pictureUrlString = profile.getProfilePictureUri(200,200).toString();
+        if (profile!= null) {
+            tvFirstName.setText(profile.getFirstName());
+            tvLastName.setText(profile.getLastName());
+            pictureUrlString = profile.getProfilePictureUri(200, 200).toString();
 
-        Bundle parameters = new Bundle();
-        parameters.putString("fields", "name,birthday,location,relationship_status,gender" );
+            Bundle parameters = new Bundle();
+            parameters.putString("fields", "name,birthday,location,relationship_status,gender");
 
-        new GraphRequest(
-                AccessToken.getCurrentAccessToken(),
-                "me?",
-                parameters,
-                HttpMethod.GET,
-                new GraphRequest.Callback() {
-                    public void onCompleted(GraphResponse response) {
-                        FacebookSdk.addLoggingBehavior(LoggingBehavior.INCLUDE_ACCESS_TOKENS);
-                        JSONObject obj = response.getJSONObject();
-                        String location = " ";
+            new GraphRequest(
+                    AccessToken.getCurrentAccessToken(),
+                    "me?",
+                    parameters,
+                    HttpMethod.GET,
+                    new GraphRequest.Callback() {
+                        public void onCompleted(GraphResponse response) {
+                            FacebookSdk.addLoggingBehavior(LoggingBehavior.INCLUDE_ACCESS_TOKENS);
+                            JSONObject obj = response.getJSONObject();
+                            String location = " ";
 
-                        gender = obj.optString(GENDER);
-                        birthday = obj.optString(BIRTHDAY);
-                        birthday = birthday.replace("/", ".");
-                        relationship_status = obj.optString(RELATIONSHIP_STATUS);
-                        try {
-                            location = obj.optJSONObject(LOCATION).getString(NAME);
-                        } catch (JSONException e) {
-                            Log.d("error", e.getMessage());
+                            gender = obj.optString(GENDER);
+                            birthday = obj.optString(BIRTHDAY);
+                            birthday = birthday.replace("/", ".");
+                            relationship_status = obj.optString(RELATIONSHIP_STATUS);
+                            Log.d("asdf", " " + obj);
+                            try {
+                                location = obj.optJSONObject(LOCATION).getString(NAME);
+                            } catch (JSONException e) {
+                                Log.d("error", e.getMessage());
+                            }
+
+                            locationName = location.split(", ");
+
+                            AsyncTask<Integer, Void, Integer> at = new MyAsyncTask();
+                            at.execute();
+
+                            tvGender.setText(gender);
+                            tvBirthday.setText(birthday);
+                            tvRelationship.setText(relationship_status);
+                            tvLocation.setText(location);
                         }
-
-                        locationName = location.split(", ");
-
-                        AsyncTask<Integer,Void,Integer> at = new MyAsyncTask();
-                        at.execute();
-
-                        tvGender.setText(gender);
-                        tvBirthday.setText(birthday);
-                        tvRelationship.setText(relationship_status);
-                        tvLocation.setText(location);
-
                     }
-                }
-        ).executeAsync();
-
+            ).executeAsync();
+        }
     }
+
     public class MyAsyncTask extends AsyncTask<Integer,Void,Integer> {
 
         final String GEOCODING_URL = "https://maps.googleapis.com/maps/api/geocode/json?address=";
@@ -335,7 +334,6 @@ public class FacebookFragment extends Fragment {
                 int height = size.y;
 
                 buttonContainer.animate().translationY(height - loginButton.getHeight()*5).setDuration(300);
-
             }
             imageView.setImageBitmap(bitmap);
             rootLayout.animate().y(0).alpha(1).setDuration(200).withEndAction(new Runnable() {
@@ -345,7 +343,6 @@ public class FacebookFragment extends Fragment {
                     rootLayout.setAlpha(1);
                 }
             });
-
         }
     }
 }
