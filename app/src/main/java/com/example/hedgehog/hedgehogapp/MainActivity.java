@@ -8,17 +8,15 @@ import android.os.Bundle;
 import android.widget.FrameLayout;
 import com.facebook.FacebookSdk;
 import com.facebook.appevents.AppEventsLogger;
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;
 
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     FrameLayout container;
+    FrameLayout mapContainer;
 
     FragmentManager fragmentManager;
     FacebookFragment facebookFragment;
@@ -34,6 +32,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         AppEventsLogger.activateApp(this);
 
         container = (FrameLayout) findViewById(R.id.container);
+        mapContainer = (FrameLayout) findViewById(R.id.mapContainer);
+        mapContainer.setAlpha(0);
+        mapContainer.setScaleX(0.3f);
+        mapContainer.setScaleY(0.3f);
         fragmentManager = getFragmentManager();
         facebookFragment = new FacebookFragment();
         facebookFragment.setMainActivity(this);

@@ -1,14 +1,19 @@
 package com.example.hedgehog.hedgehogapp;
 
 import android.app.Fragment;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Point;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -60,6 +65,7 @@ public class FacebookFragment extends Fragment {
     ImageView imageView;
     TextView tvFirstName, tvLastName, tvGender, tvBirthday, tvRelationship, tvLocation;
     LinearLayout rootLayout;
+    FrameLayout buttonContainer;
 
     final String GENDER = "gender";
     final String BIRTHDAY = "birthday";
@@ -74,8 +80,6 @@ public class FacebookFragment extends Fragment {
     String pictureUrlString;
 
     Bitmap bitmap;
-
-
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -106,6 +110,8 @@ public class FacebookFragment extends Fragment {
         tvRelationship = (TextView) view.findViewById(R.id.tvRelationship_status);
         tvLocation = (TextView) view.findViewById(R.id.tvLocation);
 
+        buttonContainer = (FrameLayout) view.findViewById(R.id.buttonContainer);
+
         callbackManager = CallbackManager.Factory.create();
 
         loginButton = (LoginButton) view.findViewById(R.id.login_button);
@@ -118,6 +124,20 @@ public class FacebookFragment extends Fragment {
         if (profile!= null) {
             setInformation();
         }
+        AccessTokenTracker accessTokenTracker = new AccessTokenTracker() {
+            @Override
+            protected void onCurrentAccessTokenChanged(
+                    AccessToken oldAccessToken,
+                    AccessToken currentAccessToken) {
+
+                if (currentAccessToken == null){
+
+                    buttonContainer.animate().translationY(0).setDuration(300);
+                    mainActivity.mapContainer.animate().scaleY(0.3f).scaleX(0.3f).alpha(0).setDuration(250);
+                    rootLayout.animate().translationY(-300).alpha(0).setDuration(250);
+                }
+            }
+        };
 
         loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
@@ -128,15 +148,19 @@ public class FacebookFragment extends Fragment {
                 loginButton.setReadPermissions("user_birthday");
                 loginButton.setReadPermissions("user_relationships");
                 setInformation();
+
             }
 
             @Override
             public void onCancel() {
-                // App code
+
+
             }
 
             @Override
             public void onError(FacebookException error) {
+
+
 
             }
         });
@@ -299,10 +323,22 @@ public class FacebookFragment extends Fragment {
         @Override
         protected void onPostExecute(Integer code) {
             LatLng mark = new LatLng(lat, lng);
-            mainActivity.mMap.addMarker(new MarkerOptions().position(mark).title(locationName[0]));
-            mainActivity.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mark, 6));
+            if (mainActivity != null) {
+                mainActivity.mMap.addMarker(new MarkerOptions().position(mark).title(locationName[0]));
+                mainActivity.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mark, 6));
+
+                mainActivity.mapContainer.animate().scaleX(1).scaleY(1).alpha(1).setDuration(250);
+                WindowManager wm = (WindowManager) mainActivity.getSystemService(Context.WINDOW_SERVICE);
+                Display display = wm.getDefaultDisplay();
+                Point size = new Point();
+                display.getSize(size);
+                int height = size.y;
+
+                buttonContainer.animate().translationY(height - loginButton.getHeight()*5).setDuration(300);
+
+            }
             imageView.setImageBitmap(bitmap);
-            rootLayout.animate().translationY(0).alpha(1).setDuration(200).withEndAction(new Runnable() {
+            rootLayout.animate().y(0).alpha(1).setDuration(200).withEndAction(new Runnable() {
                 @Override
                 public void run() {
                     rootLayout.setTranslationY(0);
