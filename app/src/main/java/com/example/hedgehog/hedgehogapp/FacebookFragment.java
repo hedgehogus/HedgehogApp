@@ -4,13 +4,13 @@ import android.app.Fragment;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.facebook.AccessToken;
 import com.facebook.AccessTokenTracker;
@@ -58,7 +58,8 @@ public class FacebookFragment extends Fragment {
     AccessTokenTracker accessTokenTracker;
 
     ImageView imageView;
-    TextView tvFirstName, tvLastName;
+    TextView tvFirstName, tvLastName, tvGender, tvBirthday, tvRelationship, tvLocation;
+    LinearLayout rootLayout;
 
     final String GENDER = "gender";
     final String BIRTHDAY = "birthday";
@@ -93,9 +94,17 @@ public class FacebookFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.splash, container, false);
 
+        rootLayout = (LinearLayout) view.findViewById(R.id.rootLayout);
+        rootLayout.setAlpha(0);
+        rootLayout.setTranslationY(-300f);
+
         imageView = (ImageView) view.findViewById(R.id.imageView);
         tvFirstName = (TextView) view.findViewById(R.id.tvName);
         tvLastName = (TextView) view.findViewById(R.id.tvLastName);
+        tvGender = (TextView) view.findViewById(R.id.tvGender);
+        tvBirthday = (TextView) view.findViewById(R.id.tvBirthday);
+        tvRelationship = (TextView) view.findViewById(R.id.tvRelationship_status);
+        tvLocation = (TextView) view.findViewById(R.id.tvLocation);
 
         callbackManager = CallbackManager.Factory.create();
 
@@ -153,7 +162,6 @@ public class FacebookFragment extends Fragment {
     private void setInformation() {
         tvFirstName.setText(profile.getFirstName());
         tvLastName.setText(profile.getLastName());
-
         pictureUrlString = profile.getProfilePictureUri(200,200).toString();
 
         Bundle parameters = new Bundle();
@@ -168,25 +176,27 @@ public class FacebookFragment extends Fragment {
                     public void onCompleted(GraphResponse response) {
                         FacebookSdk.addLoggingBehavior(LoggingBehavior.INCLUDE_ACCESS_TOKENS);
                         JSONObject obj = response.getJSONObject();
+                        String location = " ";
 
                         gender = obj.optString(GENDER);
                         birthday = obj.optString(BIRTHDAY);
                         birthday = birthday.replace("/", ".");
                         relationship_status = obj.optString(RELATIONSHIP_STATUS);
                         try {
-                            locationName = obj.optJSONObject(LOCATION).getString(NAME).split(", ");
+                            location = obj.optJSONObject(LOCATION).getString(NAME);
                         } catch (JSONException e) {
                             Log.d("error", e.getMessage());
                         }
 
+                        locationName = location.split(", ");
+
                         AsyncTask<Integer,Void,Integer> at = new MyAsyncTask();
                         at.execute();
 
-
-
-                        Log.d("asdf", " " + obj);
-                        Log.d("asdf", " " + locationName[0] + locationName[1]);
-
+                        tvGender.setText(gender);
+                        tvBirthday.setText(birthday);
+                        tvRelationship.setText(relationship_status);
+                        tvLocation.setText(location);
 
                     }
                 }
@@ -211,8 +221,6 @@ public class FacebookFragment extends Fragment {
             String responce = null;
             InputStream is = null;
             String myurl = GEOCODING_URL + locationName[0] + "&key=" + KEY;
-            Log.d ("asdf", " " + myurl);
-
             try {
                 URL url = new URL(myurl);
 
@@ -255,9 +263,6 @@ public class FacebookFragment extends Fragment {
                 lat = location.optDouble(LAT);
                 lng = location.optDouble(LNG);
 
-                Log.d ("asdf", " " + pictureUrlString);
-
-
                 URL pictureUrl = new URL(pictureUrlString);
 
                 HttpURLConnection pictureConn = (HttpURLConnection) pictureUrl.openConnection();
@@ -297,6 +302,13 @@ public class FacebookFragment extends Fragment {
             mainActivity.mMap.addMarker(new MarkerOptions().position(mark).title(locationName[0]));
             mainActivity.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mark, 6));
             imageView.setImageBitmap(bitmap);
+            rootLayout.animate().translationY(0).alpha(1).setDuration(200).withEndAction(new Runnable() {
+                @Override
+                public void run() {
+                    rootLayout.setTranslationY(0);
+                    rootLayout.setAlpha(1);
+                }
+            });
 
         }
     }
