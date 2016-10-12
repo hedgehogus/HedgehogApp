@@ -27,6 +27,7 @@ import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
 import com.facebook.LoggingBehavior;
 import com.facebook.Profile;
+import com.facebook.ProfileTracker;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -68,6 +69,7 @@ public class FacebookFragment extends Fragment {
     final String RELATIONSHIP_STATUS = "relationship_status";
     final String LOCATION = "location";
     final String NAME = "name";
+    final String UNKNOWN = "unknown";
 
     String gender;
     String birthday;
@@ -116,13 +118,10 @@ public class FacebookFragment extends Fragment {
 
 
         accessToken = AccessToken.getCurrentAccessToken();
-        if (accessToken != null) {
-            Log.d("asdf", " " + accessToken.getPermissions());
-        }
 
         profile = Profile.getCurrentProfile();
         if (profile!= null) {
-            setInformation();
+            setInformation(profile);
         }
         AccessTokenTracker accessTokenTracker = new AccessTokenTracker() {
             @Override
@@ -130,12 +129,21 @@ public class FacebookFragment extends Fragment {
                     AccessToken oldAccessToken,
                     AccessToken currentAccessToken)
             {
-                Log.d("asdf", " " + accessToken.getPermissions());
+
                 if (currentAccessToken == null){
 
                     buttonContainer.animate().translationY(0).setDuration(300);
                     mainActivity.mapContainer.animate().scaleY(0.3f).scaleX(0.3f).alpha(0).setDuration(250);
                     rootLayout.animate().translationY(-300).alpha(0).setDuration(250);
+                }
+            }
+        };
+
+        ProfileTracker profileTracker = new ProfileTracker() {
+            @Override
+            protected void onCurrentProfileChanged(Profile oldProfile, Profile currentProfile) {
+                if (currentProfile != null){
+                    setInformation(currentProfile);
                 }
             }
         };
@@ -148,7 +156,7 @@ public class FacebookFragment extends Fragment {
                 loginButton.setReadPermissions("user_location");
                 loginButton.setReadPermissions("user_birthday");
                 loginButton.setReadPermissions("user_relationships");
-                setInformation();
+                //setInformation();
             }
 
             @Override
@@ -157,7 +165,7 @@ public class FacebookFragment extends Fragment {
 
             @Override
             public void onError(FacebookException error) {
-                Log.d("asdf", error.getMessage());
+                Log.d("error", error.getMessage());
             }
         });
         return view;
@@ -179,14 +187,16 @@ public class FacebookFragment extends Fragment {
         }
     }
 
-    private void setInformation() {
-        if (profile!= null) {
+    private void setInformation(Profile profile) {
+
             tvFirstName.setText(profile.getFirstName());
             tvLastName.setText(profile.getLastName());
             pictureUrlString = profile.getProfilePictureUri(200, 200).toString();
 
             Bundle parameters = new Bundle();
             parameters.putString("fields", "name,birthday,location,relationship_status,gender");
+            AsyncTask<Integer, Void, Integer> at = new MyAsyncTask();
+            at.execute();
 
             new GraphRequest(
                     AccessToken.getCurrentAccessToken(),
@@ -198,22 +208,21 @@ public class FacebookFragment extends Fragment {
                             FacebookSdk.addLoggingBehavior(LoggingBehavior.INCLUDE_ACCESS_TOKENS);
                             JSONObject obj = response.getJSONObject();
                             String location = " ";
+                            if (obj != null) {
 
-                            gender = obj.optString(GENDER);
-                            birthday = obj.optString(BIRTHDAY);
-                            birthday = birthday.replace("/", ".");
-                            relationship_status = obj.optString(RELATIONSHIP_STATUS);
-                            Log.d("asdf", " " + obj);
-                            try {
-                                location = obj.optJSONObject(LOCATION).getString(NAME);
-                            } catch (JSONException e) {
-                                Log.d("error", e.getMessage());
+                                gender = obj.optString(GENDER);
+                                birthday = obj.optString(BIRTHDAY);
+                                birthday = birthday.replace("/", ".");
+                                relationship_status = obj.optString(RELATIONSHIP_STATUS);
+                                JSONObject locationObj = obj.optJSONObject(LOCATION);
+                                if (locationObj == null) {
+                                    location = UNKNOWN;
+                                } else {
+                                    location = locationObj.optString(NAME);
+                                }
+
+                                locationName = location.split(", ");
                             }
-
-                            locationName = location.split(", ");
-
-                            AsyncTask<Integer, Void, Integer> at = new MyAsyncTask();
-                            at.execute();
 
                             tvGender.setText(gender);
                             tvBirthday.setText(birthday);
@@ -222,7 +231,6 @@ public class FacebookFragment extends Fragment {
                         }
                     }
             ).executeAsync();
-        }
     }
 
     public class MyAsyncTask extends AsyncTask<Integer,Void,Integer> {
@@ -322,8 +330,10 @@ public class FacebookFragment extends Fragment {
         protected void onPostExecute(Integer code) {
             LatLng mark = new LatLng(lat, lng);
             if (mainActivity != null) {
-                mainActivity.mMap.addMarker(new MarkerOptions().position(mark).title(locationName[0]));
-                mainActivity.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mark, 6));
+                if (locationName[0] != UNKNOWN &&locationName[0] != " ") {
+                    mainActivity.mMap.addMarker(new MarkerOptions().position(mark).title(locationName[0]));
+                    mainActivity.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mark, 6));
+                }
 
                 mainActivity.mapContainer.animate().scaleX(1).scaleY(1).alpha(1).setDuration(250);
                 WindowManager wm = (WindowManager) mainActivity.getSystemService(Context.WINDOW_SERVICE);
